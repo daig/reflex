@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><a name="line-2"></a><span class="hs-pragma">{-# LANGUAGE EmptyDataDecls #-}</span><span>
+</span><a name="line-3"></a><span class="hs-pragma">{-# LANGUAGE GADTs #-}</span><span>
+</span><a name="line-4"></a><span class="hs-pragma">{-# LANGUAGE PatternGuards #-}</span><span>
+</span><a name="line-5"></a><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><a name="line-6"></a><span class="hs-pragma">{-# LANGUAGE TemplateHaskell #-}</span><span>
+</span><a name="line-7"></a><span class="hs-pragma">{-# LANGUAGE TypeOperators #-}</span><span>
+</span><a name="line-8"></a><span class="hs-cpp">#ifdef USE_REFLEX_OPTIMIZER</span><span>
+</span><a name="line-9"></a><span class="hs-pragma">{-# OPTIONS_GHC -fplugin=Reflex.Optimizer #-}</span><span>
+</span><a name="line-10"></a><span class="hs-cpp">#endif</span><span>
+</span><a name="line-11"></a><span class="hs-comment">-- | Template Haskell helper functions for building complex 'Dynamic' values.</span><span>
+</span><a name="line-12"></a><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Reflex</span><span class="hs-operator">.</span><span class="hs-identifier">Dynamic</span><span class="hs-operator">.</span><span class="hs-identifier">TH</span><span>
+</span><a name="line-13"></a><span>  </span><span class="hs-special">(</span><span> </span><a href="Reflex.Dynamic.TH.html#qDynPure"><span class="hs-identifier hs-var">qDynPure</span></a><span>
+</span><a name="line-14"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Reflex.Dynamic.TH.html#unqDyn"><span class="hs-identifier hs-var">unqDyn</span></a><span>
+</span><a name="line-15"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Reflex.Dynamic.TH.html#mkDynPure"><span class="hs-identifier hs-var">mkDynPure</span></a><span>
+</span><a name="line-16"></a><span>    </span><span class="hs-comment">-- * Deprecated functions</span><span>
+</span><a name="line-17"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Reflex.Dynamic.TH.html#qDyn"><span class="hs-identifier hs-var">qDyn</span></a><span>
+</span><a name="line-18"></a><span>  </span><span class="hs-special">,</span><span> </span><a href="Reflex.Dynamic.TH.html#mkDyn"><span class="hs-identifier hs-var">mkDyn</span></a><span>
+</span><a name="line-19"></a><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><a name="line-20"></a><span>
+</span><a name="line-21"></a><span class="hs-keyword">import</span><span> </span><a href="Reflex.Dynamic.html"><span class="hs-identifier">Reflex</span><span class="hs-operator">.</span><span class="hs-identifier">Dynamic</span></a><span>
+</span><a name="line-22"></a><span>
+</span><a name="line-23"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control</span><span class="hs-operator">.</span><span class="hs-identifier">Monad</span><span class="hs-operator">.</span><span class="hs-identifier">State</span><span>
+</span><a name="line-24"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Data</span><span>
+</span><a name="line-25"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Generics</span><span>
+</span><a name="line-26"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data</span><span class="hs-operator">.</span><span class="hs-identifier">Monoid</span><span>
+</span><a name="line-27"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Language</span><span class="hs-operator">.</span><span class="hs-identifier">Haskell</span><span class="hs-operator">.</span><span class="hs-identifier">Exts</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Hs</span><span>
+</span><a name="line-28"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Language</span><span class="hs-operator">.</span><span class="hs-identifier">Haskell</span><span class="hs-operator">.</span><span class="hs-identifier">Meta</span><span class="hs-operator">.</span><span class="hs-identifier">Syntax</span><span class="hs-operator">.</span><span class="hs-identifier">Translate</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Hs</span><span>
+</span><a name="line-29"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Language</span><span class="hs-operator">.</span><span class="hs-identifier">Haskell</span><span class="hs-operator">.</span><span class="hs-identifier">TH</span><span>
+</span><a name="line-30"></a><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Language</span><span class="hs-operator">.</span><span class="hs-identifier">Haskell</span><span class="hs-operator">.</span><span class="hs-identifier">TH</span><span class="hs-operator">.</span><span class="hs-identifier">Quote</span><span>
+</span><a name="line-31"></a><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Language</span><span class="hs-operator">.</span><span class="hs-identifier">Haskell</span><span class="hs-operator">.</span><span class="hs-identifier">TH</span><span class="hs-operator">.</span><span class="hs-identifier">Syntax</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">TH</span><span>
+</span><a name="line-32"></a><span>
+</span><a name="line-33"></a><span class="hs-comment">-- | Quote a 'Dynamic' expression.  Within the quoted expression, you can use</span><span>
+</span><a name="line-34"></a><span class="hs-comment">-- @$(unqDyn [| x |])@ to refer to any expression @x@ of type @Dynamic t a@; the</span><span>
+</span><a name="line-35"></a><span class="hs-comment">-- unquoted result will be of type @a@</span><span>
+</span><a name="line-36"></a><span class="hs-identifier">qDynPure</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier hs-type">Q</span><span> </span><span class="hs-identifier hs-type">Exp</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">Q</span><span> </span><span class="hs-identifier hs-type">Exp</span><span>
+</span><a name="line-37"></a><a name="qDynPure"><a href="Reflex.Dynamic.TH.html#qDynPure"><span class="hs-identifier">qDynPure</span></a></a><span> </span><a name="local-6989586621679378493"><a href="#local-6989586621679378493"><span class="hs-identifier">qe</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a name="line-38"></a><span>  </span><a name="local-6989586621679378494"><a href="#local-6989586621679378494"><span class="hs-identifier">e</span></a></a><span> </span><span class="hs-glyph">&lt;-</span><span> </span><a href="#local-6989586621679378493"><span class="hs-identifier hs-var">qe</span></a><span>
+</span><a name="line-39"></a><span>  </span><span class="hs-keyword">let</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><a name="local-6989586621679378496"><a href="#local-6989586621679378496"><span class="hs-identifier">d</span></a></a><span class="hs-operator">.</span><span> </span><span class="hs-identifier hs-type">Data</span><span> </span><a href="#local-6989586621679378496"><span class="hs-identifier hs-type">d</span></a><span> </span><span class="hs-glyph">=&gt;</span><span> </span><a href="#local-6989586621679378496"><span class="hs-identifier hs-type">d</span></a><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier hs-type">StateT</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="hs-identifier hs-type">Name</span><span class="hs-special">,</span><span> </span><span class="hs-identifier hs-type">Exp</span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-identifier hs-type">Q</span><span> </span><a href="#local-6989586621679378496"><span class="hs-identifier hs-type">d</span></a><span>
+</span><a name="line-40"></a><span>      </span><a name="local-6989586621679378495"><a href="#local-6989586621679378495"><span class="hs-identifier">f</span></a></a><span> </span><a name="local-6989586621679378497"><a href="#local-6989586621679378497"><span class="hs-identifier">d</span></a></a><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="hs-identifier hs-var">eqT</span><span> </span><span class="hs-keyword">of</span><span>
+</span><a name="line-41"></a><span>        </span><span class="hs-identifier hs-var">Just</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">Refl</span><span> </span><span class="hs-glyph">::</span><span> </span><a href="#local-6989586621679378496"><span class="hs-identifier hs-type">d</span></a><span> </span><span class="hs-operator">:~:</span><span> </span><span class="hs-identifier hs-type">Exp</span><span class="hs-special">)</span><span>
+</span><a name="line-42"></a><span>          </span><span class="hs-glyph">|</span><span> </span><span class="hs-identifier hs-var">AppE</span><span> </span><span class="hs-special">(</span><span class="hs-identifier hs-var">VarE</span><span> </span><a name="local-6989586621679378498"><a href="#local-6989586621679378498"><span class="hs-identifier">m</span></a></a><span class="hs-special">)</span><span> </span><a name="local-6989586621679378499"><a href="#local-6989586621679378499"><span class="hs-identifier">eInner</span></a></a><span> </span><span class="hs-glyph">&lt;-</span><span> </span><a href="#local-6989586621679378497"><span class="hs-identifier hs-var">d</span></a><span>
+</span><a name="line-43"></a><span>          </span><span class="hs-special">,</span><span> </span><a href="#local-6989586621679378498"><span class="hs-identifier hs-var">m</span></a><span> </span><span class="hs-operator hs-var">==</span><span> </span><span class="hs-char">'unqMarker
+          -&gt; do n &lt;- lift $ newName &quot;dynamicQuotedExpressionVariable&quot;
+                modify ((n, eInner):)
+                return $ VarE n
+        _ -&gt; gmapM f d
+  (e', exprsReversed) &lt;- runStateT (gmapM f e) []
+  let exprs = reverse exprsReversed
+      arg = foldr (\a b -&gt; ConE 'FHCons `AppE` a `AppE` b) (ConE 'FHNil) $ map snd exprs
+      param = foldr (\a b -&gt; ConP 'HCons [VarP a, b]) (ConP 'HNil []) $ map fst exprs
+  [| $(return $ LamE [param] e') &lt;$&gt; distributeFHListOverDynPure $(return arg) |]
+
+-- | Antiquote a 'Dynamic' expression.  This can /only/ be used inside of a
+-- 'qDyn' quotation.
+unqDyn :: Q Exp -&gt; Q Exp
+unqDyn e = [| unqMarker $e |]
+
+-- | This type represents an occurrence of unqDyn before it has been processed
+-- by qDyn.  If you see it in a type error, it probably means that unqDyn has
+-- been used outside of a qDyn context.
+data UnqDyn
+
+-- unqMarker must not be exported; it is used only as a way of smuggling data
+-- from unqDyn to qDyn
+
+--TODO: It would be much nicer if the TH AST was extensible to support this kind of thing without trickery
+unqMarker :: a -&gt; UnqDyn
+unqMarker = error &quot;An unqDyn expression was used outside of a qDyn expression&quot;
+
+-- | Create a 'Dynamic' value using other 'Dynamic's as inputs.  The result is
+-- sometimes more concise and readable than the equivalent 'Applicative'-based
+-- expression.  For example:
+--
+-- &gt; [mkDyn| $x + $v * $t + 1/2 * $a * $t ^ 2 |]
+--
+-- would have a very cumbersome 'Applicative' encoding.
+mkDynPure :: QuasiQuoter
+mkDynPure = QuasiQuoter
+  { quoteExp = mkDynExp
+  , quotePat = error &quot;mkDyn: pattern splices are not supported&quot;
+  , quoteType = error &quot;mkDyn: type splices are not supported&quot;
+  , quoteDec = error &quot;mkDyn: declaration splices are not supported&quot;
+  }
+
+mkDynExp :: String -&gt; Q Exp
+mkDynExp s = case Hs.parseExpWithMode (Hs.defaultParseMode { Hs.extensions = [ Hs.EnableExtension Hs.TemplateHaskell ] }) s of
+  Hs.ParseFailed (Hs.SrcLoc _ l c) err -&gt; fail $ &quot;mkDyn:&quot; &lt;&gt; show l &lt;&gt; &quot;:&quot; &lt;&gt; show c &lt;&gt; &quot;: &quot; &lt;&gt; err
+  Hs.ParseOk e -&gt; qDynPure $ return $ everywhere (id `extT` reinstateUnqDyn) $ Hs.toExp $ everywhere (id `extT` antiE) e
+    where TH.Name (TH.OccName occName) (TH.NameG _ _ (TH.ModName modName)) = 'unqMarker
+#if MIN_VERSION_haskell_src_exts(1,18,0)
+          antiE :: Hs.Exp Hs.SrcSpanInfo -&gt; Hs.Exp Hs.SrcSpanInfo
+          antiE x = case x of
+            Hs.SpliceExp l se -&gt;
+              Hs.App l (Hs.Var l $ Hs.Qual l (Hs.ModuleName l modName) (Hs.Ident l occName)) $ case se of
+                Hs.IdSplice l2 v -&gt; Hs.Var l2 $ Hs.UnQual l2 $ Hs.Ident l2 v
+                Hs.ParenSplice _ ps -&gt; ps
+            _ -&gt; x
+#else
+          antiE x = case x of
+            Hs.SpliceExp se -&gt;
+              Hs.App (Hs.Var $ Hs.Qual (Hs.ModuleName modName) (Hs.Ident occName)) $ case se of
+                Hs.IdSplice v -&gt; Hs.Var $ Hs.UnQual $ Hs.Ident v
+                Hs.ParenSplice ps -&gt; ps
+            _ -&gt; x
+#endif
+          reinstateUnqDyn (TH.Name (TH.OccName occName') (TH.NameQ (TH.ModName modName')))
+            | modName == modName' &amp;&amp; occName == occName' = 'unqMarker
+          reinstateUnqDyn x = x
+
+--------------------------------------------------------------------------------
+-- Deprecated
+--------------------------------------------------------------------------------
+
+{-# DEPRECATED qDyn &quot;Instead of $(qDyn x), use return $(qDynPure x)&quot; #-}
+-- | Like 'qDynPure', but wraps its result monadically using 'return'.  This is
+-- no longer necessary, due to 'Dynamic' being an instance of 'Functor'.
+qDyn :: Q Exp -&gt; Q Exp
+qDyn qe = [| return $(qDynPure qe) |]
+
+{-# DEPRECATED mkDyn &quot;Instead of [mkDyn| x |], use return [mkDynPure| x |]&quot; #-}
+-- | Like 'mkDynPure', but wraps its result monadically using 'return'.  This is
+-- no longer necessary, due to 'Dynamic' being an instance of 'Functor'.
+mkDyn :: QuasiQuoter
+mkDyn = QuasiQuoter
+  { quoteExp = \s -&gt; [| return $(mkDynExp s) |]
+  , quotePat = error &quot;mkDyn: pattern splices are not supported&quot;
+  , quoteType = error &quot;mkDyn: type splices are not supported&quot;
+  , quoteDec = error &quot;mkDyn: declaration splices are not supported&quot;
+  }
+</span></pre></body></html>
